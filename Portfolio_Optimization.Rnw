@@ -1,0 +1,457 @@
+\documentclass[11pt]{article}
+
+\usepackage[colorlinks=true]{hyperref} 
+\usepackage{amsmath,amsfonts,fullpage}
+\def\E{\mathbb E}
+\def\R{\mathbb R}
+\def\P{\mathbb P}
+\def\what{\widehat}
+\def\wtilde{\widetilde}
+
+\begin{document}
+<<Homework,include=FALSE>>=
+HW.number = 5
+Due.date  = "April 7, 2025"
+@
+
+\centerline{\Large Homework \Sexpr{HW.number} }
+
+\medskip
+\centerline{ Due on \Sexpr{Due.date} }
+
+\medskip\noindent
+{\bf Instructions:} 
+\begin{itemize}
+\item Install {\tt pdflatex}, {\tt R}, and 
+{\tt RStudio} on your computer.
+\item 
+Please edit the {\tt HW\Sexpr{HW.number}\_First\_Last.Rnw} file 
+in {\tt Rstudio} and compile with {\tt knitr} instead of {\tt Sweave}. 
+Go to the menu {\tt RStudio|Preferences...|Sweave} choose the 
+{\tt knitr} option, i.e., {\tt Weave Rnw files using knitr?}
+You may have to install {\tt knitr} and other necessary packages.  
+
+\item 
+Replace "First" and "Last" in the file-name with your first and last names,
+respectively. Complete your assignment by modifying and/or adding necessary 
+R-code in the text below. 
+
+\item You should submit both a {\bf PDF file} and a {\bf ZIP file} containing the
+data and the 
+{\em HW\Sexpr{HW.number}\_First\_Last.Rnw} file required to produce the PDF.
+The file should be named "HW\Sexpr{HW.number}\_First\_Last.zip" and it 
+should contain a single 
+folder named "First\_Last" with all the necessary data files, the 
+{\tt HW\Sexpr{HW.number}\_First\_Last.Rnw} and
+{\tt HW\Sexpr{HW.number}\_First\_Last.pdf} file, which 
+was obtained from compiling {\tt HW\Sexpr{HW.number}\_First\_Last.Rnw} with {\tt knitr}
+and \LaTeX.
+
+\item The GSI grader will annotate the PDF file you submit.  However, they will also 
+check if the code you provide in the ZIP file compiles correctly. If the file fails to 
+compile due to errors other than missing
+packages, there will be an automatic 10\% deduction to your score. 
+
+\end{itemize}
+
+{\bf \Large Problems:}
+
+\begin{enumerate}
+
+\item Consider the Dow Jones data set provided in the
+file \texttt{DowJones30.csv} under the textbook data sets folder in
+Canvas.  The data set is also available
+\href{https://www.dropbox.com/s/vzd2sh68ipsipui/DowJones30.csv?dl=0}{here}.  
+
+{\bf (a)} Consider the vectors of daily log-returns of all 30 stocks 
+$$
+ r_k,\ k=1,\dots, 2529
+$$
+over the period of 10 years from 1990 through 2000. Model the joint distribution 
+of the daily log-returns with a multivariate $t-$distribution with mean 
+$\mu$ and covariance matrix $\Sigma$.  More precisely,
+$$
+r_k \stackrel{d}{=} \mu + T,\ \ \mbox{ with }T = \frac{X}{\sqrt{Y/\nu}}, 
+$$
+where $X \sim {\cal N}(0,\Lambda = \Sigma\times (\nu-2)/\nu)$ and
+$Y\sim {\rm Gamma}(\nu/2,1/2)$ are independent.
+
+Fit this model to the data. Assuming that $\nu>2$, estimate $\Lambda$ by using the sample 
+covariance of the data and use the method of profile likelihood to estimate $\nu$.
+
+<<problem 1a, include=T>>=
+library("mnormt")
+t.loglike = function(dat,nu.range){
+  mu = apply(dat,2,mean);
+  Sig = cov(dat);
+  t.loglike = matrix(0,nrow=1,ncol=length(nu.range));
+  for (i in 1:length(nu.range)){
+   nu = nu.range[i];
+   t.loglike[1,i] = sum(log(dmt(dat,mean=mu, S = Sig/(nu/(nu-2)), df=nu)));
+  }
+  return(t.loglike);
+}
+dat = read.csv("./DowJones30.csv",head=T);
+n = length(dat$AA);
+x = unlist(dat);
+x = matrix(as.numeric(x[-(1:n)]),nrow=n,ncol=30);
+ret = log(x[-1,]/x[-n,]);
+nu.range = seq(from=2.01,to=10,by=0.01);
+
+loglike = t.loglike(ret, nu.range)
+max_idx = which.max(loglike)
+nu_MLE = nu.range[max_idx]
+cat(nu_MLE)
+@
+
+Using the method above, we estimate that $\hat{\nu} = 7.25$.
+
+{\bf (b)} Using the method of profile likelihood, obtain an asymptotic 
+95\%-confidence interval for the parameter $\nu$. 
+
+<<problem 1b, include=T>>=
+alpha = 0.05
+q.alpha = qchisq(1-alpha, 1)
+z1 = (2*loglike > 2*max(loglike) - q.alpha)
+ci_lb = min(nu.range[which(z1)])
+ci_ub = max(nu.range[which(z1)])
+cat(c(ci_lb, ci_ub))
+@
+
+The 95\% confidence interval for $\nu$ is $(6.92, 7.6)$.
+
+{\bf (c)} Compute the daily Value-at-Risk at level $\alpha = 0.95$ for the
+equal-weighted portfolio including all 30 stocks and using the model-fit in
+part {\bf (a)}, obtain  $VaR_{0.95}$, so that
+$$
+\P( r < -VaR_{0.95}) =0.05,
+$$
+where $r$ denotes log-return on this portfolio.
+
+<<problem 1c, include=T>>=
+mu = apply(ret,2,mean);
+Lambda = cov(ret) / (nu_MLE/(nu_MLE-2))
+d = 30;
+w = rep(1/d, d);
+
+VaR = function(VaR_level){
+  VaR = -1 * sqrt(t(w) %*% (Lambda %*% w));
+  VaR = VaR * qt(1-VaR_level, df = nu_MLE);
+  VaR = VaR - w %*% mu;
+  return(VaR)
+}
+
+cat(VaR(0.95))
+@
+
+Then, the Value-at-Risk at level $\alpha=0.95$ is 0.01488 for the log-returns, which means that around 5\% of the times, the portfolio has losses bigger than 1.5\%.
+
+% {\em Hint:} Use the package \texttt{mnormt} for the function \texttt{dmt}, which computes
+% the density of a multivariate $t$-distribution with specified mean and shape matrix $\Lambda$.
+% You can modify and complete the following code.
+% <<profile,include=T>>=
+% library("mnormt")
+% t.loglike = function(dat,nu.range){
+%   mu = apply(dat,2,mean);
+%   Sig = cov(dat);
+%   t.loglike = matrix(0,nrow=1,ncol=length(nu.range));
+%   for (i in 1:length(nu.range)){
+%    nu = nu.range[i];
+%    t.loglike[1,i] = sum(log(dmt(dat,mean=mu, S = Sig/(nu/(nu-2)), df=nu)));
+%   }
+%   return(t.loglike);
+% }
+% dat = read.csv("./DowJones30.csv",head=T);
+% n = length(dat$AA);
+% x = unlist(dat);
+% x = matrix(as.numeric(x[-(1:n)]),nrow=n,ncol=30);
+% ret = log(x[-1,]/x[-n,]);
+% nu.range = seq(from=2.01,to=10,by=0.01);
+% ## Complete or correct the above code.
+% @
+
+\item Consider the data set from the previous problem. 
+Assume that the vector of daily log-returns $r \stackrel{d}=\mu + T$,
+where $\mu = \overline r$ is the vector of sample means and $T$ is
+distributed according to the $t$-distribution found in the previous problem.\\
+
+{\bf (a)} Given a target expected daily return level $v$, determine the 
+portflio weights $w_i,\ i=1,\dots,30$ such that $\sum_{i=1}^{30} w_i =1$, which
+{\em minimize} VaR$_{0.95}$ of the portfolio return
+$$
+r(w):= w_1 r_1 + \cdots + w_{30} r_{30},
+$$
+where $r_i$ is the daily log-return of the $i$th stock in DJIA.
+Write an $R$-function that returns the optimal portfolio weights
+given a value for the target expected return.
+
+{\bf How do the optimal portfolio weights for a given target expected return 
+depend on the VaR level $\alpha$?  Explain.}
+
+Consider $\sigma_w^2 := w^\top\Lambda w$. Then, by the hint, we know that:
+\begin{align*}
+    r(w) & \stackrel{d}{=} w^\top \mu + (w^\top \Lambda w)^{1/2} T_\nu \\
+    & \stackrel{d}{=} w^\top \mu + \sigma_w T_\nu
+\end{align*}
+Thus, the Value-at-Risk must satisfy:
+\begin{align*}
+    \P(r(w) < -VaR_\alpha) &= \P(w^\top \mu + \sigma_w T_\nu < -VaR_\alpha)\\
+    &= \P(T_\nu < \frac{-VaR_\alpha-w^\top \mu}{\sigma_w }) = 1-\alpha \\
+    \Rightarrow \frac{-VaR_\alpha-w^\top \mu}{\sigma_w } &= q_{1-\alpha}(\nu) \\
+    \Rightarrow VaR_\alpha &=  -w^\top \mu - (w^\top \Lambda w)^{1/2} q_{1-\alpha}(\nu)
+\end{align*}
+For a given target expected return, we have that $w^\top \mu = v$. Consequently, for a fixed VaR level, minimizing the Value-at-Risk is equivalent to minimizing the variance $\sigma_w^2$. In conclusion, we have the minimization problem:
+\begin{equation}
+\begin{array}{rrclcl}
+\displaystyle \min_{w} & \multicolumn{3}{l}{w^\top\Lambda w}\\
+\textrm{s.t.} & w^\top \mu = v  \\
+&\sum_i w_i = 1
+\end{array}
+\end{equation}
+Additionally, since $\Lambda = \frac{\nu-2}{\nu}\Sigma$, we can change the objective function to $w^\top\Sigma w$. Then, the objective function becomes the portfolio variance.
+
+<<problem 2a, include=T>>=
+library("quadprog");
+mu = apply(ret,2,mean);
+Sigma = cov(ret)
+run_solve_QF <- function(Sigma, mu, v, short_sell = F) {
+  d <- length(mu)
+  Dmat <- 2 * Sigma  # Required because solve.QP uses (1/2)x'Dx
+  dvec <- rep(0, d)
+  Amat <- cbind(mu, rep(1, d))
+  bvec <- c(v, 1)
+  if (short_sell){
+      Amat = cbind(Amat, diag(d))
+      bvec = c(bvec, rep(0, d))
+  }
+  res <- solve.QP(Dmat = Dmat,
+                  dvec = dvec,
+                  Amat = Amat,
+                  bvec = bvec,
+                  meq = 2)
+  return(list(variance = res$value, solution = res$solution))
+}
+@
+
+In conclusion, the minimization of Value-at-Risk depends on the minimization of a quadratic form, and the weights affect the VaR only through this quadratic form that is associated with the variance of the portfolio.
+
+{\bf (b)} Using the function in part {\bf (a)} compute the efficient frontier of
+portfolios corresponding to several target daily log-return levels
+$v=0.001/365$ to $v=0.65/365$. Graph the points $(SD(r(w)),\E (r(w)))$, 
+corresponding to these portfolia. That is, produce a risk-reward diagram for 
+the portfolios, where $SD(r(w))$ and $\E(r(w))$ denote the standard deviation 
+and expectation of the returns, respectively. Assuming that the 
+{\bf yearly} risk-free interest rate is $\mu_{F} = 0.03$, determine the ``tangency" portfolio, 
+i.e., the one maximizing the Sharpe ratio $(\E r(w)-\mu_{F})/SD(r(w)).$ 
+(Note: remember to work in the correct units -- i.e. determine the {\bf daily} risk-free rate. You
+may also have to find an appropriate range of target expected returns in order to find the global 
+maximum of the Sharpe ratio.)
+
+<<problem 2b, include=T>>=
+v.range = seq(from=0.001,to=0.75,by=0.001)/365;
+sig.pf = matrix(0,nrow=length(v.range),ncol=1);
+weights = matrix(0,nrow=length(v.range),ncol=30);
+for (i in (1:length(v.range))){
+ v = v.range[i];
+ res = run_solve_QF(Sigma, mu, v, short_sell=F)
+ sig.pf[i] = sqrt(res$variance);
+ weights[i,] = res$solution;
+}
+mu_f = log(1.03)/365; # Risk-free rate
+plot(sig.pf, v.range, type='l', col='blue',
+     xlab="Std. Deviation Portfolio", ylab='Expected Return',
+     main = "Risk-Reward Diagram")
+sharp.ratio = (v.range - mu_f)/sig.pf
+opt.sr.idx = which.max(sharp.ratio)
+optimal.pf.short = c(v.range[opt.sr.idx], sig.pf[opt.sr.idx])
+library(knitr)
+kable(weights[opt.sr.idx, ])
+@
+
+The column above represents the weights of the tangencial portfolio (i.e. maximizes Sharpe ratio). We can observe that some of the weights are negative. This indicates that short-selling is allowed.
+
+% {\em Hint:}  In part {\bf (a)} observe that
+% \begin{align*}
+% r(w) & \stackrel{d}{=} w^\top \mu + w^\top X /\sqrt{Y/\nu} \\
+%  & \stackrel{d}{=} w^\top \mu + (w^\top \Lambda w)^{1/2} T_\nu,
+% \end{align*}
+% where $T_\nu$ is a $t$-distributed scalar random variable with $\nu$ degrees of freedom.
+% Use this fact to show that
+% \begin{equation}\label{e:VaR}
+% VaR_{\alpha} = -w^\top \mu - (w^\top \Lambda w)^{1/2} q_{1-\alpha}(\nu),
+% \end{equation}
+% where $q_{1-\alpha}(\nu)$ is the $1-\alpha$ quantile of
+% the $t-$distribution with $\nu$ degrees of freedom, i.e., 
+% $\P(T_\nu \le q_{1-\alpha}(\nu)) =1-\alpha.$
+% 
+% Formulate the above optimization problem as a quadratic program with linear constraints.
+% Use the function \texttt{solve.QP} in package \texttt{quadprog} to obtain a numerical solution.
+% 
+% 
+% You may need to modify "eval=FALSE" to "eval=TRUE" when you are
+% ready to complete the following R-chunk.
+
+% <<optim var, include=T, eval=FALSE >>=
+% mu <- matrix(apply(ret,2,mean),nrow=30,ncol=1);
+% Lambda <- cov(ret);
+% q <- qt(0.05,6)
+% mu_f = log(1.03)/365;
+% library("quadprog");
+% vs = seq(from=0.001,to=0.75,by=0.001)/365;
+% sig = matrix(0,nrow=length(vs),ncol=1);
+% weights = matrix(0,nrow=length(vs),ncol=30);
+% for (i in (1:length(vs))){
+%  v = vs[i];
+%  Amat = # Define me
+%  bvec = # Define me
+%  dvec = # Define me
+%  res = solve.QP( # Call me)
+%  sig[i] = sqrt(res$value);
+%  weights[i,] = res$solution;
+% }
+% @
+
+{\bf (c)} Repeat part {\bf (b)} with a suitably chosen range of target expected returns
+under the condition that no short-selling is allowed (i.e., the weights are all non-negative). 
+Comment on the optimal portfolio weights in the two cases, i.e., with and without short-selling.  
+Is the expected return in part {\bf (b)} sustainable/reasonable? 
+
+<<problem 2c, include=T>>=
+v.range = seq(from=0.001,to=0.75,by=0.001)/365;
+v.range = v.range[v.range<max(mu)]
+sig.pf = matrix(0,nrow=length(v.range),ncol=1);
+weights = matrix(0,nrow=length(v.range),ncol=30);
+for (i in (1:length(v.range))){
+ v = v.range[i];
+ res = run_solve_QF(Sigma, mu, v, short_sell=T)
+ sig.pf[i] = sqrt(res$variance);
+ weights[i,] = res$solution;
+}
+mu_f = log(1.03)/365; # Risk-free rate
+plot(sig.pf, v.range, type='l', col='blue',
+     xlab="Std. Deviation Portfolio", ylab='Expected Return',
+     main = "Risk-Reward Diagram")
+sharp.ratio = (v.range - mu_f)/sig.pf
+opt.sr.idx = which.max(sharp.ratio)
+optimal.pf.long = c(v.range[opt.sr.idx], sig.pf[opt.sr.idx])
+library(knitr)
+kable(weights[opt.sr.idx, ])
+kable(rbind(optimal.pf.short, optimal.pf.long), 
+      col.names = c("Expected Return", "Std. Deviation"))
+@
+
+In the case with short-selling, the expected return is 0.17\% and the standard deviation is 1.8\%. In the case without short-selling, the expected return is 0.09\% and the standard deviation is 1.1\%.
+
+We can notice that the case that allows short-selling almost doubles the expected return of the other case. If we observe the weights of the optimal portfolio in (b), we note that the third stock has a strong short position of 33\%. Thus, short-selling allows the portfolio to invest more resources on high-yield stocks, and at the same time, it can profit from stocks that have losses. In conclusion, the expected return of portfolio (b) is only sustainable while there are companies experiencing losses.
+
+\item Problem 6 on page 513 of the textbook \href{https://www.dropbox.com/s/0p7sz2oi0mgf7zn/Ruppert_Matheson_Statistics%20and%20Data%20Analysis%20for%20Financial%20Engineering.pdf?dl=0}{(link to the textbook)}.
+
+(a) The value for the beta of stock A can be calculated from:
+\begin{align*}
+    \beta_A &= \frac{\sigma_{AM}}{\sigma_{M}^2} \\
+    &= \frac{165 \%^2}{11^2 \%^2} \\
+    &= 1.364
+\end{align*}
+
+This value of beta implies an "agressive" stock. 
+
+(b) The expected return can be calculated from:
+\begin{align*}
+    \mu_A &= \mu_f + \beta_A (\mu_M - \mu_f) \\
+    &= 4\% +  1.364\cdot (12\% - 4\%)\\
+    &= 14.91\%
+\end{align*}
+
+(c) Finally, the percentage of the variance due to market risk is:
+\begin{align*}
+    \frac{\beta_A^2\, \sigma_M^2}{\sigma_A^2} 
+    &= \frac{1.364^2\, 11^2 \%^2}{320\%^2} \\
+    &= 0.7031
+\end{align*}
+In conclusion, the percentage of variance due to market risk is 70.31\%.
+
+\item Problem 7 on page 513 of the textbook.
+
+(a) The beta of the portfolio is the average of the given betas.
+\begin{align*}
+    \beta_P &= \frac{\beta_1+\beta_2+\beta_3}{3} \\
+    &= 0.8667
+\end{align*}
+(b) The requested variance satisfies:
+\begin{align*}
+    \textrm{Var}(R_P-\mu_{ft}) 
+    &= (\beta_P)^2 \, \textrm{Var}(R_{Mt}-\mu_{ft}) + \frac{1}{3}\sum_j \textrm{Var}(\epsilon_j) \\
+    &= 0.8667^2 \cdot 0.014 + \frac{0.010+0.015+0.011}{3} \\
+    &= 0.02252
+\end{align*}
+(c) We calculate the percentage as:
+\begin{align*}
+    \frac{(\beta_P)^2 \, \textrm{Var}(R_{Mt}-\mu_{ft})}{0.2252}
+    = 0.4670
+\end{align*}
+Thus, the percentage of the risk due to market risk is 46.7\%.
+
+
+\item Problem 2 on page 356 in the textbook (read Problem 1 terein on how to get the data).
+
+<<problem 5a, include=TRUE>>=
+library(Ecdat)
+data(CRSPday)
+crsp = CRSPday[,7]
+
+ar1 = arima(crsp, order=c(1,0,0))
+ar2 = arima(crsp, order=c(2,0,0))
+selection = data.frame(
+  Model = c("AR(1)", "AR(2)"),
+  AIC = c(ar1$aic, ar2$aic),
+  BIC = c(BIC(ar1), BIC(ar2))
+)
+library(knitr)
+kable(selection)
+@
+We can observe that both AIC and BIC are lower for the model AR(1) compared to AR(2). Then, AR(1) is preferred. 
+
+(b) We calculate the 95\%-confidence interval from the previous model.
+<<problem 5b, include=TRUE>>=
+phi.hat = as.numeric(ar1$coef[1])
+se.phi = sqrt(ar1$var.coef[1,1])
+ci = data.frame(
+  Parameter = c("phi"),
+  Estimate = c(phi.hat),
+  LowerBound = c(phi.hat-1.96*se.phi),
+  UpperBound = c(phi.hat+1.96*se.phi)
+)
+kable(ci)
+@
+Then, the 95\% CI for $\phi$ is $[0.0465, 0.1241]$.
+
+
+\item Problem 4 on page 356 in the textbook.
+
+(a) The variance of the $Y_t$ process is independent of time. It can be calculated from:
+\begin{align*}
+    \textrm{Var}(Y_1) &= \gamma(0) = \frac{\sigma_\epsilon^2}{1-\phi^2}  \\
+    &= \frac{1.2}{1-0.4^2} = 1.4286
+\end{align*}
+
+(b) Now, we calculate the covariances:
+\begin{align*}
+    \textrm{Cov}(Y_1, Y_2) &= \gamma(1) =  \phi\cdot \gamma(0) \\
+    &= 0.4 \cdot 1.4286 = 0.5714 \\
+    \textrm{Cov}(Y_1, Y_3) &= \gamma(2) =  \phi^2\cdot \gamma(0) \\
+    &= 0.4^2 \cdot 1.4286 = 0.2286
+\end{align*}
+(c) Finally, we calculate the requested variance:
+\begin{align*}
+    \textrm{Var}(0.5\,(Y_1+Y_2+Y_3)) &= 0.5^2\textrm{Cov}(Y_1+Y_2+Y_3, Y_1+Y_2+Y_3) \\
+    &= 0.25 \;[\textrm{Var}(Y_1) + \textrm{Var}(Y_2) + \textrm{Var}(Y_3) \\
+    & + 2\, (\textrm{Cov}(Y_1, Y_3)+\textrm{Cov}(Y_1, Y_2) + \textrm{Cov}(Y_2, Y_3))] \\
+    &= 0.25\;[3\,\gamma(0)+2(\,\gamma(2)+2\,\gamma(1)\,)]\\
+    &= 0.25\;[3\gamma(0)+2\gamma(2)+4\gamma(1)] \\
+    &= 1.7571
+\end{align*}
+
+\end{enumerate}
+
+
+\end{document}
