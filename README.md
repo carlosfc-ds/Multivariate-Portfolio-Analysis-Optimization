@@ -37,12 +37,6 @@ This project focuses on modeling daily log-returns for 30 Dow Jones stocks (1990
 
 ## 🛠️ R Functions & Skills Highlight
 
-### 5. Visualization & Reporting
-*   **`plot(..., type='l')`**: Generates line graphs for the **Efficient Frontier** and Risk-Reward diagrams.
-*   **`library("knitr")`**:
-    *   **`kable()`**: Formats R data frames and matrices into clean, readable Markdown/PDF tables.
-*   **`cat()`**: Outputs specific results (like the estimated $\nu$) directly into the report text.
-
 ### 1. Multivariate Data Manipulation
 *   **Data Transformation:** Converting raw price data into daily log-returns using vectorized operations.
 *   **Matrix Algebra:** Managing 30-dimension data structures for joint distribution modeling.
@@ -80,6 +74,11 @@ This project focuses on modeling daily log-returns for 30 Dow Jones stocks (1990
 
 ### 5. Reproducible Research
 *   **Literate Programming:** Using `Rnw` (Sweave/knitr) and $\LaTeX$ to generate professional, code-integrated PDF reports.
+*   **`plot(..., type='l')`**: Generates line graphs for the **Efficient Frontier** and Risk-Reward diagrams.
+*   **`library("knitr")`**:
+    *   **`kable()`**: Formats R data frames and matrices into clean, readable Markdown/PDF tables.
+*   **`cat()`**: Outputs specific results (like the estimated $\nu$) directly into the report text.
+
 
 
 ---
