@@ -8,9 +8,9 @@ This project focuses on modeling daily log-returns for 30 Dow Jones stocks (1990
 ## Problem Summaries
 
 ### Problem 1: Likelihood & Risk
-*   **Model Fitting:** Estimate the shape matrix $\Lambda$ and use **profile likelihood** to determine the optimal degrees of freedom ($\nu$).
 *   **Goal:** Model daily log-returns of 30 Dow Jones stocks using a multivariate $t$-distribution.
 *   **Tasks:** Estimate the degrees of freedom ($\nu$) using profile likelihood, determine a 95% confidence interval for $\nu$, and calculate the daily **Value-at-Risk (VaR)** for an equal-weighted portfolio.
+*   **Model Fitting:** Estimate the shape matrix $\Lambda$ and use **profile likelihood** to determine the optimal degrees of freedom ($\nu$).
 *   **Inference:** Construct an asymptotic **95% confidence interval** for $\nu$.
 *   **Risk Metrics:** Calculate the daily **Value-at-Risk (VaR)** at the $\alpha = 0.95$ level for an equally-weighted portfolio.
 
@@ -74,13 +74,6 @@ This project focuses on modeling daily log-returns for 30 Dow Jones stocks (1990
 
 ### 5. Reproducible Research
 *   **Literate Programming:** Using `Rnw` (Sweave/knitr) and $\LaTeX$ to generate professional, code-integrated PDF reports.
-*   **`plot(..., type='l')`**: Generates line graphs for the **Efficient Frontier** and Risk-Reward diagrams.
-*   **`library("knitr")`**:
-    *   **`kable()`**: Formats R data frames and matrices into clean, readable Markdown/PDF tables.
-*   **`cat()`**: Outputs specific results (like the estimated $\nu$) directly into the report text.
-
-
-
 ---
 
 ## Technical Requirements
